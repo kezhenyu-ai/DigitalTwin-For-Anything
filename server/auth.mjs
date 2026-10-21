@@ -4,7 +4,7 @@ const sessions = new Map();
 const attempts = new Map();
 
 const AUTH_USER = (process.env.AUTH_USER || 'admin').toLowerCase();
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'Binhe@2026';
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || '';
 const AUTH_NAME = process.env.AUTH_NAME || '值班管理员';
 const AUTH_ROLE = process.env.AUTH_ROLE || 'OPERATOR · ADMIN';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -147,6 +147,14 @@ async function middleware(req, res, next) {
     const password = String(body.password || '');
     if (!username || !password) {
       sendJson(res, 400, { error: 'MISSING_FIELDS', message: '请输入操作员编号和访问口令。' });
+      return;
+    }
+
+    if (!AUTH_PASSWORD) {
+      sendJson(res, 503, {
+        error: 'AUTH_NOT_CONFIGURED',
+        message: '本地认证尚未配置登录口令，请由管理员设置 AUTH_PASSWORD 后重启服务。',
+      });
       return;
     }
 

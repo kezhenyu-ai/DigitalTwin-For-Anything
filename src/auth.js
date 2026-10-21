@@ -13,9 +13,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
 const STATIC_SESSION_KEY = 'binhe_static_session';
 const STATIC_USER = {
-  username: 'admin',
-  name: '值班管理员',
-  role: 'STATIC DEMO · VIEWER',
+  username: 'guest',
+  name: '在线访客',
+  role: 'PUBLIC DEMO · READ-ONLY',
 };
 
 export class LoginGate {
@@ -86,6 +86,7 @@ export class LoginGate {
     this.username?.focus();
 
     if (STATIC_DEMO) {
+      this.configurePublicDemo();
       try {
         const saved = sessionStorage.getItem(STATIC_SESSION_KEY);
         if (saved) {
@@ -103,6 +104,7 @@ export class LoginGate {
         // SessionStorage may be unavailable in privacy mode.
       }
       this.setState('ready');
+      this.setButtonText('进入在线演示', 'ENTER PUBLIC DEMO');
       this.bootLine('MODE  static demo · browser-only ...... OK', 'ok');
       this.setConsoleMode('STATIC DEMO');
       return;
@@ -136,6 +138,32 @@ export class LoginGate {
       if (saved && this.username) this.username.value = saved;
     } catch {
       // Storage can be unavailable in hardened browser profiles.
+    }
+  }
+
+  configurePublicDemo() {
+    this.screen?.classList.add('is-public-demo');
+    const titleSpan = this.card?.querySelector('.login-card-title > span');
+    const title = this.card?.querySelector('.login-card-title h2');
+    const subtitle = this.card?.querySelector('.login-card-title p');
+    const secure = this.card?.querySelector('.login-secure');
+    if (titleSpan) titleSpan.textContent = 'PUBLIC DEMO ACCESS';
+    if (title) title.textContent = '在线演示入口';
+    if (subtitle) subtitle.innerHTML = '<i></i>READ-ONLY STATIC DEMO';
+    if (secure) secure.textContent = 'PUBLIC';
+    const note = $('#login-public-note');
+    if (note) note.hidden = false;
+    const foot = this.card?.querySelector('.login-card-foot');
+    if (foot) foot.innerHTML = '<span><i></i>STATIC GITHUB PAGES</span><span>TAB SESSION</span><span>READ-ONLY</span>';
+    // Replace the credential-oriented boot sequence with a public demo sequence.
+    clearTimeout(this.bootTimer);
+    this.bootTimer = null;
+    if (this.bootLog) {
+      this.bootLog.innerHTML = '';
+      this.bootLine('BOOT  static demo core ................ OK', 'ok');
+      this.bootLine('LINK  CEMS / PLC / ENERGY / CCTV ...... 38 NODES', 'ok');
+      this.bootLine('AUTH  public read-only access .......... OPEN', 'ok');
+      this.bootLine('WAIT  click enter public demo ......... _', '');
     }
   }
 
@@ -247,6 +275,10 @@ export class LoginGate {
   async submitLogin() {
     if (!this.form || ['checking', 'auth', 'granted', 'restored'].includes(this.state)) return;
     this.clearError();
+    if (STATIC_DEMO) {
+      await this.loginPublic();
+      return;
+    }
     const username = this.username?.value.trim() || '';
     const password = this.password?.value || '';
     if (!username || !password) {
@@ -258,37 +290,6 @@ export class LoginGate {
     this.setState('auth');
     this.bootLine('AUTH  validating operator key .......... RUN', '');
     this.setConsoleMode('VERIFYING CREDENTIALS');
-
-    if (STATIC_DEMO) {
-      await sleep(520);
-      if (username.toLowerCase() !== 'admin' || password !== 'Binhe@2026') {
-        this.setState('ready');
-        this.showError('身份校验失败，请检查操作员编号或访问口令。');
-        this.card?.classList.add('is-denied');
-        this.bootLine('AUTH  credential rejected ............. DENY', 'warn');
-        this.setConsoleMode('ACCESS DENIED');
-        setTimeout(() => this.card?.classList.remove('is-denied'), 500);
-        this.password?.focus();
-        this.password?.select();
-        return;
-      }
-      const user = { ...STATIC_USER, expiresAt: null };
-      this.currentUser = user;
-      this.setUser(user);
-      try {
-        sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
-        localStorage.setItem('binhe_operator', user.username);
-      } catch {
-        // Session still lives for this page view.
-      }
-      this.setState('granted');
-      this.bootLine('AUTH  identity verified ............... OK', 'ok');
-      this.granted?.setAttribute('aria-hidden', 'false');
-      this.screen?.classList.add('is-granted');
-      await sleep(900);
-      this.finish();
-      return;
-    }
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -333,6 +334,27 @@ export class LoginGate {
       this.bootLine('AUTH  gateway unreachable ............. ERR', 'warn');
       this.setConsoleMode('GATEWAY OFFLINE');
     }
+  }
+
+  async loginPublic() {
+    this.setState('auth');
+    this.bootLine('AUTH  public demo access ............... RUN', '');
+    this.setConsoleMode('PUBLIC DEMO');
+    await sleep(420);
+    const user = { ...STATIC_USER, expiresAt: null };
+    this.currentUser = user;
+    this.setUser(user);
+    try {
+      sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
+    } catch {
+      // Session still lives for this page view.
+    }
+    this.setState('granted');
+    this.bootLine('AUTH  public demo granted .............. OK', 'ok');
+    this.granted?.setAttribute('aria-hidden', 'false');
+    this.screen?.classList.add('is-granted');
+    await sleep(820);
+    this.finish();
   }
 
   setUser(user) {

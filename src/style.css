@@ -7973,3 +7973,36 @@ body.software-render .scene-vignette {
   .drawer-action-row { margin-top: 9px; }
   .drawer-action { height: 34px; }
 }
+
+/* Public demo access (no credentials) */
+.login-public-note {
+  display: block;
+  margin-top: 14px;
+  padding: 10px 12px;
+  color: #8fb5ad;
+  font-family: var(--font-cn);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  border: 1px solid rgba(97, 239, 189, 0.15);
+  background: rgba(18, 46, 44, 0.36);
+}
+
+.login-public-note[hidden] {
+  display: none;
+}
+
+.login-screen.is-public-demo .login-field,
+.login-screen.is-public-demo .login-options,
+.login-screen.is-public-demo .login-demo {
+  display: none;
+}
+
+.login-screen.is-public-demo .login-form {
+  gap: 16px;
+  padding-top: 20px;
+}
+
+.login-screen.is-public-demo .login-submit {
+  margin-top: 2px;
+}
