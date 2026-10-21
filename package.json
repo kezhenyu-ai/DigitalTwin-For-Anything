@@ -1,0 +1,18 @@
+{
+  "name": "digitaltwin-for-anything",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DigitalTwin For Anything — 铸铁件生产厂污染排放数字孪生系统",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}
