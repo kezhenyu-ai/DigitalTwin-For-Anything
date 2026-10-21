@@ -3,6 +3,7 @@ import { authPlugin } from './server/auth.mjs';
 import { aiPlugin } from './server/ai.mjs';
 
 export default defineConfig({
+  base: process.env.VITE_BASE || '/',
   plugins: [authPlugin(), aiPlugin()],
   server: {
     host: '0.0.0.0',

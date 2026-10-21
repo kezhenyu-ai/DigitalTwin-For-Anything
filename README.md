@@ -6,6 +6,20 @@
 
 > 当前数据、CEMS 读数和视频画面为本地演示源（demo telemetry / simulated optics），用于完整呈现系统交互与数据链路。接入真实数据的方法见“接入真实系统”。
 
+## 在线演示
+
+GitHub Pages：
+
+**https://kezhenyu-ai.github.io/DigitalTwin-For-Anything/**
+
+演示账号：
+
+```text
+admin / Binhe@2026
+```
+
+> GitHub Pages 是纯静态托管，不能运行 Vite/Node 中间件。在线版使用浏览器本地校验登录，AI 使用基于当前看板数据的本地规则分析，未调用大模型。完整登录会话与 DeepSeek AI 请在本地运行 `npm run dev`。
+
 ---
 
 ## 1. 功能一览
@@ -79,6 +93,20 @@ npm run dev
 ```bash
 npm run build
 npm run preview
+```
+
+静态演示构建（当前 GitHub Pages 使用）：
+
+```bash
+VITE_STATIC_DEMO=true VITE_BASE=/DigitalTwin-For-Anything/ npm run build -- --outDir dist-pages
+```
+
+Windows PowerShell：
+
+```powershell
+$env:VITE_STATIC_DEMO='true'
+$env:VITE_BASE='/DigitalTwin-For-Anything/'
+npm run build -- --outDir dist-pages
 ```
 
 也可以直接双击根目录的 `start-gpu.bat`：脚本会检查/启动本地服务，并用带 Vulkan / 高性能 GPU 参数的独立浏览器配置打开页面。

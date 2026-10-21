@@ -3,6 +3,9 @@ const MODEL_LABELS = {
   'deepseek-v4-pro': 'DeepSeek-V4-Pro',
 };
 
+const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const fmtTime = (date = new Date()) => {
   const d = date instanceof Date ? date : new Date(date);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
@@ -133,6 +136,13 @@ export class AIChat {
     this.unsubscribe = null;
 
     if (!this.panel) return;
+    if (STATIC_DEMO) {
+      this.modelName.textContent = 'Rule Analyst';
+      this.contextStatus.textContent = '静态演示 · 本地规则分析';
+      this.statusDot.className = 'status-dot idle';
+      const note = document.querySelector('.ai-footnote');
+      if (note) note.textContent = '静态演示：本地规则分析，未调用大模型；完整 AI 请在本地运行';
+    }
     this.renderWelcome();
     this.bindEvents();
     this.unsubscribe = simulation.subscribe((state) => this.onState(state));
@@ -176,10 +186,16 @@ export class AIChat {
     if (!this.contextTime) return;
     const t = state.updatedAt instanceof Date ? state.updatedAt : new Date();
     this.contextTime.textContent = `看板更新 ${fmtTime(t)}`;
-    if (this.open && Date.now() - this.lastSync > 12000) this.syncTelemetry();
+    if (!STATIC_DEMO && this.open && Date.now() - this.lastSync > 12000) this.syncTelemetry();
   }
 
   async checkStatus() {
+    if (STATIC_DEMO) {
+      this.backendConfigured = false;
+      this.contextStatus.textContent = '静态演示 · 本地规则分析';
+      this.statusDot.className = 'status-dot idle';
+      return;
+    }
     try {
       const res = await fetch('/api/ai/status', { signal: AbortSignal.timeout(5000) });
       if (!res.ok) throw new Error(`status ${res.status}`);
@@ -205,6 +221,12 @@ export class AIChat {
   }
 
   async syncTelemetry(force = false) {
+    if (STATIC_DEMO) {
+      this.lastSync = Date.now();
+      this.contextTime.textContent = `看板更新 ${fmtTime()}`;
+      this.contextStatus.textContent = '静态演示 · 本地规则分析';
+      return true;
+    }
     if (!this.state || this.syncing) return false;
     if (!force && Date.now() - this.lastSync < 9000) return true;
     this.syncing = true;
@@ -329,6 +351,40 @@ export class AIChat {
     });
   }
 
+  localAnswer(question) {
+    const state = this.state;
+    if (!state) return '静态演示：看板数据尚未就绪，请稍后再试。';
+    const head = '静态演示 · 本地规则分析（未调用大模型）\n\n';
+    const q = String(question || '').toLowerCase();
+    const emissions = [...state.emissions]
+      .filter((point) => point.limit > 0)
+      .sort((a, b) => b.value / b.limit - a.value / a.limit);
+    const top = emissions[0];
+    const warnings = state.equipment.filter((eq) => eq.status !== 'running');
+    const topMeters = [...state.meters].sort((a, b) => b.current - a.current).slice(0, 3);
+
+    if (/排放|环保|排口|废气|浓度|cems|风险/.test(question)) {
+      const rows = emissions.slice(0, 3).map((point) => `• ${point.code} ${point.name}：${point.value.toFixed(1)} ${point.primaryUnit}，限值 ${point.limit} ${point.primaryUnit}，占限值 ${(point.value / point.limit * 100).toFixed(1)}%，状态 ${point.status === 'normal' ? '正常' : '预警'}`);
+      return `${head}数据事实：\n${rows.join('\n')}\n\n建议：优先核查 ${top.code} 对应治理设施的压差、滤袋和风量；若浓度持续上升，先降负荷并安排检修。`;
+    }
+
+    if (/能耗|能源|电|负荷|耗电|kwh|气耗|水耗/.test(question)) {
+      const rows = topMeters.map((meter) => `• ${meter.name}：${meter.current.toFixed(0)} kW，今日 ${meter.today.toFixed(0)} kWh，占比 ${(meter.current / Math.max(1, state.totalLoad) * 100).toFixed(1)}%`);
+      return `${head}当前总负荷 ${state.totalLoad.toFixed(0)} kW，今日累计 ${state.totalKwh.toFixed(0)} kWh，吨铸件电耗 ${(state.totalKwh / state.production.today).toFixed(1)} kWh/t。\n\n主要分表：\n${rows.join('\n')}\n\n建议：结合生产节拍检查熔炼保温与空压/循环水系统是否存在空转。`;
+    }
+
+    if (/设备|预警|报警|故障|维护|状态/.test(question)) {
+      const rows = warnings.slice(0, 5).map((eq) => `• ${eq.id} ${eq.name}：${eq.status === 'warning' ? '预警' : eq.status}，功率 ${eq.power.toFixed(0)} kW，温度 ${eq.temp.toFixed(1)} ℃，振动 ${eq.vibration.toFixed(1)} mm/s`);
+      return `${head}当前有 ${warnings.length} 台设备处于非正常运行状态。\n${rows.join('\n') || '• 无设备预警'}\n\n建议：优先处理循环水冷却塔与砂处理除尘压差报警，确认备件与检修窗口。`;
+    }
+
+    if (/交接|摘要|总结|值班|日报/.test(question)) {
+      return `${head}白班运行摘要：\n• 今日铸件产量 ${state.production.today.toFixed(1)} t，OEE ${state.production.oee.toFixed(1)}%，在岗 ${state.production.staff} 人。\n• 全厂总负荷 ${state.totalLoad.toFixed(0)} kW，吨铸件电耗 ${(state.totalKwh / state.production.today).toFixed(1)} kWh/t。\n• 最高排放风险：${top.code} ${top.name}，${top.value.toFixed(1)} ${top.primaryUnit}，占限值 ${(top.value / top.limit * 100).toFixed(1)}%。\n• 设备预警 ${warnings.length} 台，未确认报警 ${state.alarms.filter((alarm) => !alarm.acknowledged).length} 条。\n\n建议下班前复核除尘压差、冷却塔振动和熔炼保温功率。`;
+    }
+
+    return `${head}当前可分析：排放风险排序、能耗负荷、设备预警、值班交接摘要。\n\n如果你需要自由问答，请在本地运行完整版并配置 DeepSeek API Key。`;
+  }
+
   async send(rawText) {
     const text = String(rawText || '').trim();
     if (!text || this.busy) return;
@@ -338,6 +394,17 @@ export class AIChat {
     this.resizeInput();
     this.setBusy(true);
     const typing = this.appendTyping();
+
+    if (STATIC_DEMO) {
+      await pause(650);
+      typing.remove();
+      this.appendMessage('assistant', this.localAnswer(text));
+      this.contextStatus.textContent = '静态演示 · 本地规则分析';
+      this.setBusy(false);
+      this.input.focus();
+      return;
+    }
+
     try {
       if (!this.lastSync || Date.now() - this.lastSync > 7000) await this.syncTelemetry(true);
       const response = await fetch('/api/ai/chat', {
