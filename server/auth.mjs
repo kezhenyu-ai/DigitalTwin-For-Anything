@@ -125,6 +125,38 @@ async function middleware(req, res, next) {
     return;
   }
 
+  if (url.pathname === '/api/auth/config' && req.method === 'GET') {
+    sendJson(res, 200, {
+      passwordRequired: Boolean(AUTH_PASSWORD),
+      publicDemo: !AUTH_PASSWORD,
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/auth/public' && req.method === 'POST') {
+    if (AUTH_PASSWORD) {
+      sendJson(res, 403, {
+        error: 'PASSWORD_REQUIRED',
+        message: '管理员已启用口令认证，请使用分配的凭据登录。',
+      });
+      return;
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + SESSION_MS;
+    sessions.set(token, {
+      username: 'guest',
+      name: '在线访客',
+      role: 'PUBLIC DEMO · READ-ONLY',
+      expiresAt,
+    });
+    setSessionCookie(res, token, true);
+    sendJson(res, 200, {
+      authenticated: true,
+      user: publicUser({ username: 'guest', name: '在线访客', role: 'PUBLIC DEMO · READ-ONLY', expiresAt }),
+    });
+    return;
+  }
+
   if (url.pathname === '/api/auth/login' && req.method === 'POST') {
     const ip = req.socket.remoteAddress || 'local';
     if (!allowAttempt(ip)) {

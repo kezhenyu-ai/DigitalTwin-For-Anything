@@ -40,6 +40,7 @@ export class LoginGate {
     this.userChip = $('#btn-user');
     this.currentUser = null;
     this.state = 'checking';
+    this.publicAccess = STATIC_DEMO;
     this.finished = false;
     this.bootTimer = null;
     this.clockTimer = null;
@@ -111,9 +112,15 @@ export class LoginGate {
     }
 
     try {
-      const response = await fetch('/api/auth/session', { signal: AbortSignal.timeout(4500) });
-      if (response.ok) {
-        const data = await response.json();
+      const [sessionResponse, configResponse] = await Promise.all([
+        fetch('/api/auth/session', { signal: AbortSignal.timeout(4500) }),
+        fetch('/api/auth/config', { signal: AbortSignal.timeout(4500) }),
+      ]);
+      const config = configResponse.ok ? await configResponse.json() : { passwordRequired: true };
+      this.publicAccess = !config.passwordRequired;
+      if (this.publicAccess) this.configurePublicDemo('local');
+      if (sessionResponse.ok) {
+        const data = await sessionResponse.json();
         if (data.authenticated) {
           this.currentUser = data.user;
           this.setUser(data.user);
@@ -126,6 +133,7 @@ export class LoginGate {
         }
       }
       this.setState('ready');
+      if (this.publicAccess) this.setButtonText('进入在线演示', 'ENTER PUBLIC DEMO');
     } catch {
       this.setState('ready');
       this.showError('认证服务暂未连接，请确认本地服务已启动。');
@@ -141,26 +149,32 @@ export class LoginGate {
     }
   }
 
-  configurePublicDemo() {
+  configurePublicDemo(mode = 'static') {
+    this.publicAccess = true;
     this.screen?.classList.add('is-public-demo');
+    const isLocal = mode === 'local';
     const titleSpan = this.card?.querySelector('.login-card-title > span');
     const title = this.card?.querySelector('.login-card-title h2');
     const subtitle = this.card?.querySelector('.login-card-title p');
     const secure = this.card?.querySelector('.login-secure');
     if (titleSpan) titleSpan.textContent = 'PUBLIC DEMO ACCESS';
     if (title) title.textContent = '在线演示入口';
-    if (subtitle) subtitle.innerHTML = '<i></i>READ-ONLY STATIC DEMO';
+    if (subtitle) subtitle.innerHTML = `<i></i>${isLocal ? 'NO-CREDENTIAL LOCAL DEMO' : 'READ-ONLY STATIC DEMO'}`;
     if (secure) secure.textContent = 'PUBLIC';
     const note = $('#login-public-note');
     if (note) note.hidden = false;
     const foot = this.card?.querySelector('.login-card-foot');
-    if (foot) foot.innerHTML = '<span><i></i>STATIC GITHUB PAGES</span><span>TAB SESSION</span><span>READ-ONLY</span>';
+    if (foot) {
+      foot.innerHTML = isLocal
+        ? '<span><i></i>LOCAL PUBLIC DEMO</span><span>SESSION 08H</span><span>READ-ONLY</span>'
+        : '<span><i></i>STATIC GITHUB PAGES</span><span>TAB SESSION</span><span>READ-ONLY</span>';
+    }
     // Replace the credential-oriented boot sequence with a public demo sequence.
     clearTimeout(this.bootTimer);
     this.bootTimer = null;
     if (this.bootLog) {
       this.bootLog.innerHTML = '';
-      this.bootLine('BOOT  static demo core ................ OK', 'ok');
+      this.bootLine(`BOOT  ${isLocal ? 'local' : 'static'} demo core ............... OK`, 'ok');
       this.bootLine('LINK  CEMS / PLC / ENERGY / CCTV ...... 38 NODES', 'ok');
       this.bootLine('AUTH  public read-only access .......... OPEN', 'ok');
       this.bootLine('WAIT  click enter public demo ......... _', '');
@@ -275,7 +289,7 @@ export class LoginGate {
   async submitLogin() {
     if (!this.form || ['checking', 'auth', 'granted', 'restored'].includes(this.state)) return;
     this.clearError();
-    if (STATIC_DEMO) {
+    if (STATIC_DEMO || this.publicAccess) {
       await this.loginPublic();
       return;
     }
@@ -340,15 +354,40 @@ export class LoginGate {
     this.setState('auth');
     this.bootLine('AUTH  public demo access ............... RUN', '');
     this.setConsoleMode('PUBLIC DEMO');
-    await sleep(420);
-    const user = { ...STATIC_USER, expiresAt: null };
+
+    let user;
+    if (STATIC_DEMO) {
+      await sleep(420);
+      user = { ...STATIC_USER, expiresAt: null };
+      try {
+        sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
+      } catch {
+        // Session still lives for this page view.
+      }
+    } else {
+      try {
+        const response = await fetch('/api/auth/public', {
+          method: 'POST',
+          signal: AbortSignal.timeout(5000),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          this.setState('ready');
+          this.showError(data.message || '公开演示入口暂不可用，请稍后再试。');
+          this.setConsoleMode('ACCESS DENIED');
+          return;
+        }
+        user = data.user;
+      } catch {
+        this.setState('ready');
+        this.showError('无法连接认证服务，请确认本地服务仍在运行。');
+        this.setConsoleMode('GATEWAY OFFLINE');
+        return;
+      }
+    }
+
     this.currentUser = user;
     this.setUser(user);
-    try {
-      sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
-    } catch {
-      // Session still lives for this page view.
-    }
     this.setState('granted');
     this.bootLine('AUTH  public demo granted .............. OK', 'ok');
     this.granted?.setAttribute('aria-hidden', 'false');
