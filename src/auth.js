@@ -12,11 +12,18 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
 const STATIC_SESSION_KEY = 'binhe_static_session';
+const STATIC_PASSWORD_HASH = 'eef7f10f1d5eee6322bee716171726bfa693c4cc0d4ef4582653fb113da19a93';
 const STATIC_USER = {
-  username: 'guest',
-  name: '在线访客',
-  role: 'PUBLIC DEMO · READ-ONLY',
+  username: 'admin',
+  name: '值班管理员',
+  role: 'OPERATOR · ADMIN',
 };
+
+async function sha256Hex(value) {
+  const data = new TextEncoder().encode(String(value));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 export class LoginGate {
   constructor({ onAuthenticated }) {
@@ -40,7 +47,6 @@ export class LoginGate {
     this.userChip = $('#btn-user');
     this.currentUser = null;
     this.state = 'checking';
-    this.publicAccess = STATIC_DEMO;
     this.finished = false;
     this.bootTimer = null;
     this.clockTimer = null;
@@ -87,7 +93,6 @@ export class LoginGate {
     this.username?.focus();
 
     if (STATIC_DEMO) {
-      this.configurePublicDemo();
       try {
         const saved = sessionStorage.getItem(STATIC_SESSION_KEY);
         if (saved) {
@@ -105,22 +110,15 @@ export class LoginGate {
         // SessionStorage may be unavailable in privacy mode.
       }
       this.setState('ready');
-      this.setButtonText('进入在线演示', 'ENTER PUBLIC DEMO');
       this.bootLine('MODE  static demo · browser-only ...... OK', 'ok');
       this.setConsoleMode('STATIC DEMO');
       return;
     }
 
     try {
-      const [sessionResponse, configResponse] = await Promise.all([
-        fetch('/api/auth/session', { signal: AbortSignal.timeout(4500) }),
-        fetch('/api/auth/config', { signal: AbortSignal.timeout(4500) }),
-      ]);
-      const config = configResponse.ok ? await configResponse.json() : { passwordRequired: true };
-      this.publicAccess = !config.passwordRequired;
-      if (this.publicAccess) this.configurePublicDemo('local');
-      if (sessionResponse.ok) {
-        const data = await sessionResponse.json();
+      const response = await fetch('/api/auth/session', { signal: AbortSignal.timeout(4500) });
+      if (response.ok) {
+        const data = await response.json();
         if (data.authenticated) {
           this.currentUser = data.user;
           this.setUser(data.user);
@@ -133,7 +131,6 @@ export class LoginGate {
         }
       }
       this.setState('ready');
-      if (this.publicAccess) this.setButtonText('进入在线演示', 'ENTER PUBLIC DEMO');
     } catch {
       this.setState('ready');
       this.showError('认证服务暂未连接，请确认本地服务已启动。');
@@ -146,38 +143,6 @@ export class LoginGate {
       if (saved && this.username) this.username.value = saved;
     } catch {
       // Storage can be unavailable in hardened browser profiles.
-    }
-  }
-
-  configurePublicDemo(mode = 'static') {
-    this.publicAccess = true;
-    this.screen?.classList.add('is-public-demo');
-    const isLocal = mode === 'local';
-    const titleSpan = this.card?.querySelector('.login-card-title > span');
-    const title = this.card?.querySelector('.login-card-title h2');
-    const subtitle = this.card?.querySelector('.login-card-title p');
-    const secure = this.card?.querySelector('.login-secure');
-    if (titleSpan) titleSpan.textContent = 'PUBLIC DEMO ACCESS';
-    if (title) title.textContent = '在线演示入口';
-    if (subtitle) subtitle.innerHTML = `<i></i>${isLocal ? 'NO-CREDENTIAL LOCAL DEMO' : 'READ-ONLY STATIC DEMO'}`;
-    if (secure) secure.textContent = 'PUBLIC';
-    const note = $('#login-public-note');
-    if (note) note.hidden = false;
-    const foot = this.card?.querySelector('.login-card-foot');
-    if (foot) {
-      foot.innerHTML = isLocal
-        ? '<span><i></i>LOCAL PUBLIC DEMO</span><span>SESSION 08H</span><span>READ-ONLY</span>'
-        : '<span><i></i>STATIC GITHUB PAGES</span><span>TAB SESSION</span><span>READ-ONLY</span>';
-    }
-    // Replace the credential-oriented boot sequence with a public demo sequence.
-    clearTimeout(this.bootTimer);
-    this.bootTimer = null;
-    if (this.bootLog) {
-      this.bootLog.innerHTML = '';
-      this.bootLine(`BOOT  ${isLocal ? 'local' : 'static'} demo core ............... OK`, 'ok');
-      this.bootLine('LINK  CEMS / PLC / ENERGY / CCTV ...... 38 NODES', 'ok');
-      this.bootLine('AUTH  public read-only access .......... OPEN', 'ok');
-      this.bootLine('WAIT  click enter public demo ......... _', '');
     }
   }
 
@@ -289,10 +254,6 @@ export class LoginGate {
   async submitLogin() {
     if (!this.form || ['checking', 'auth', 'granted', 'restored'].includes(this.state)) return;
     this.clearError();
-    if (STATIC_DEMO || this.publicAccess) {
-      await this.loginPublic();
-      return;
-    }
     const username = this.username?.value.trim() || '';
     const password = this.password?.value || '';
     if (!username || !password) {
@@ -304,6 +265,43 @@ export class LoginGate {
     this.setState('auth');
     this.bootLine('AUTH  validating operator key .......... RUN', '');
     this.setConsoleMode('VERIFYING CREDENTIALS');
+
+    if (STATIC_DEMO) {
+      await sleep(520);
+      let submittedHash = '';
+      try {
+        submittedHash = await sha256Hex(password);
+      } catch {
+        submittedHash = '';
+      }
+      if (username.toLowerCase() !== STATIC_USER.username || submittedHash !== STATIC_PASSWORD_HASH) {
+        this.setState('ready');
+        this.showError('身份校验失败，请检查操作员编号或访问口令。');
+        this.card?.classList.add('is-denied');
+        this.bootLine('AUTH  credential rejected ............. DENY', 'warn');
+        this.setConsoleMode('ACCESS DENIED');
+        setTimeout(() => this.card?.classList.remove('is-denied'), 500);
+        this.password?.focus();
+        this.password?.select();
+        return;
+      }
+      const user = { ...STATIC_USER, expiresAt: null };
+      this.currentUser = user;
+      this.setUser(user);
+      try {
+        sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
+        localStorage.setItem('binhe_operator', user.username);
+      } catch {
+        // Session still lives for this page view.
+      }
+      this.setState('granted');
+      this.bootLine('AUTH  identity verified ............... OK', 'ok');
+      this.granted?.setAttribute('aria-hidden', 'false');
+      this.screen?.classList.add('is-granted');
+      await sleep(900);
+      this.finish();
+      return;
+    }
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -348,52 +346,6 @@ export class LoginGate {
       this.bootLine('AUTH  gateway unreachable ............. ERR', 'warn');
       this.setConsoleMode('GATEWAY OFFLINE');
     }
-  }
-
-  async loginPublic() {
-    this.setState('auth');
-    this.bootLine('AUTH  public demo access ............... RUN', '');
-    this.setConsoleMode('PUBLIC DEMO');
-
-    let user;
-    if (STATIC_DEMO) {
-      await sleep(420);
-      user = { ...STATIC_USER, expiresAt: null };
-      try {
-        sessionStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(user));
-      } catch {
-        // Session still lives for this page view.
-      }
-    } else {
-      try {
-        const response = await fetch('/api/auth/public', {
-          method: 'POST',
-          signal: AbortSignal.timeout(5000),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          this.setState('ready');
-          this.showError(data.message || '公开演示入口暂不可用，请稍后再试。');
-          this.setConsoleMode('ACCESS DENIED');
-          return;
-        }
-        user = data.user;
-      } catch {
-        this.setState('ready');
-        this.showError('无法连接认证服务，请确认本地服务仍在运行。');
-        this.setConsoleMode('GATEWAY OFFLINE');
-        return;
-      }
-    }
-
-    this.currentUser = user;
-    this.setUser(user);
-    this.setState('granted');
-    this.bootLine('AUTH  public demo granted .............. OK', 'ok');
-    this.granted?.setAttribute('aria-hidden', 'false');
-    this.screen?.classList.add('is-granted');
-    await sleep(820);
-    this.finish();
   }
 
   setUser(user) {

@@ -5,6 +5,12 @@ const attempts = new Map();
 
 const AUTH_USER = (process.env.AUTH_USER || 'admin').toLowerCase();
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || '';
+const DEFAULT_PASSWORD_HASH = 'eef7f10f1d5eee6322bee716171726bfa693c4cc0d4ef4582653fb113da19a93';
+const sha256 = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
+const AUTH_PASSWORD_HASH = (
+  process.env.AUTH_PASSWORD_SHA256
+  || (AUTH_PASSWORD ? sha256(AUTH_PASSWORD) : DEFAULT_PASSWORD_HASH)
+).toLowerCase();
 const AUTH_NAME = process.env.AUTH_NAME || '值班管理员';
 const AUTH_ROLE = process.env.AUTH_ROLE || 'OPERATOR · ADMIN';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -125,38 +131,6 @@ async function middleware(req, res, next) {
     return;
   }
 
-  if (url.pathname === '/api/auth/config' && req.method === 'GET') {
-    sendJson(res, 200, {
-      passwordRequired: Boolean(AUTH_PASSWORD),
-      publicDemo: !AUTH_PASSWORD,
-    });
-    return;
-  }
-
-  if (url.pathname === '/api/auth/public' && req.method === 'POST') {
-    if (AUTH_PASSWORD) {
-      sendJson(res, 403, {
-        error: 'PASSWORD_REQUIRED',
-        message: '管理员已启用口令认证，请使用分配的凭据登录。',
-      });
-      return;
-    }
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Date.now() + SESSION_MS;
-    sessions.set(token, {
-      username: 'guest',
-      name: '在线访客',
-      role: 'PUBLIC DEMO · READ-ONLY',
-      expiresAt,
-    });
-    setSessionCookie(res, token, true);
-    sendJson(res, 200, {
-      authenticated: true,
-      user: publicUser({ username: 'guest', name: '在线访客', role: 'PUBLIC DEMO · READ-ONLY', expiresAt }),
-    });
-    return;
-  }
-
   if (url.pathname === '/api/auth/login' && req.method === 'POST') {
     const ip = req.socket.remoteAddress || 'local';
     if (!allowAttempt(ip)) {
@@ -182,15 +156,7 @@ async function middleware(req, res, next) {
       return;
     }
 
-    if (!AUTH_PASSWORD) {
-      sendJson(res, 503, {
-        error: 'AUTH_NOT_CONFIGURED',
-        message: '本地认证尚未配置登录口令，请由管理员设置 AUTH_PASSWORD 后重启服务。',
-      });
-      return;
-    }
-
-    if (!safeEqual(username.toLowerCase(), AUTH_USER) || !safeEqual(password, AUTH_PASSWORD)) {
+    if (!safeEqual(username.toLowerCase(), AUTH_USER) || !safeEqual(sha256(password), AUTH_PASSWORD_HASH)) {
       // Keep the response generic so the client cannot enumerate accounts.
       sendJson(res, 401, { error: 'INVALID_CREDENTIALS', message: '身份校验失败，请检查操作员编号或访问口令。' });
       return;
