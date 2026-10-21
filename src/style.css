@@ -7663,3 +7663,149 @@ body.software-render .scene-vignette {
   box-shadow: inset 0 0 12px rgba(97, 239, 189, 0.04);
 }
 .user-avatar { font-size: 8.5px; }
+
+/* =========================================================
+   Equipment detail drawer readability pass
+   ========================================================= */
+
+.detail-drawer {
+  width: min(620px, 96vw);
+}
+
+.drawer-head {
+  padding: 26px 26px 20px;
+}
+
+.drawer-eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+}
+
+.drawer-title {
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.drawer-title h2 {
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.drawer-title p {
+  margin-top: 7px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.drawer-status {
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.drawer-body {
+  padding: 22px 24px 30px;
+}
+
+.drawer-section {
+  margin-bottom: 25px;
+}
+
+.drawer-section-title {
+  margin-bottom: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+}
+
+.drawer-section-title span {
+  font-size: 9.5px;
+}
+
+.sensor-grid {
+  gap: 1px;
+}
+
+.sensor-cell {
+  padding: 14px 15px;
+}
+
+.sensor-cell span {
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.sensor-cell b {
+  margin-top: 7px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.sensor-cell b small {
+  margin-left: 3px;
+  font-size: 10px;
+}
+
+.sensor-cell em {
+  margin-top: 6px;
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.eq-drawer-chart {
+  height: 140px;
+}
+
+.drawer-two-col {
+  gap: 14px;
+}
+
+.drawer-info-row {
+  gap: 16px;
+  padding: 9px 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.drawer-info-row b {
+  font-size: 11.5px;
+}
+
+.drawer-action-row {
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.drawer-action {
+  height: 42px;
+  font-size: 11.5px;
+}
+
+.drawer-log {
+  grid-template-columns: 50px 5px minmax(0, 1fr);
+  gap: 9px;
+  padding: 8px 0;
+}
+
+.drawer-log span {
+  font-size: 9.5px;
+}
+
+.drawer-log p {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+@media (max-width: 1400px) {
+  .detail-drawer { width: min(580px, 96vw); }
+  .drawer-title h2 { font-size: 24px; }
+  .sensor-cell b { font-size: 22px; }
+  .drawer-info-row { font-size: 10px; }
+  .drawer-info-row b { font-size: 11px; }
+}
+
+@media (max-width: 980px) {
+  .detail-drawer { width: min(560px, 98vw); }
+  .drawer-head { padding: 20px 20px 16px; }
+  .drawer-body { padding: 18px 19px 26px; }
+}
