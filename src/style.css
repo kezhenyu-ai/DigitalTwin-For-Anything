@@ -7809,3 +7809,167 @@ body.software-render .scene-vignette {
   .drawer-head { padding: 20px 20px 16px; }
   .drawer-body { padding: 18px 19px 26px; }
 }
+
+/* Equipment drawer fit-to-screen tuning */
+.detail-drawer {
+  width: min(600px, 96vw);
+}
+
+.drawer-head {
+  padding: 20px 24px 15px;
+}
+
+.drawer-eyebrow {
+  font-size: 9px;
+}
+
+.drawer-title {
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.drawer-title h2 {
+  font-size: 24px;
+  line-height: 1.18;
+}
+
+.drawer-title p {
+  margin-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.drawer-status {
+  gap: 5px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  font-size: 10.5px;
+}
+
+.drawer-body {
+  padding: 18px 22px 20px;
+}
+
+.drawer-section {
+  margin-bottom: 18px;
+}
+
+.drawer-section-title {
+  margin-bottom: 10px;
+  font-size: 10px;
+}
+
+.drawer-section-title span {
+  font-size: 9px;
+}
+
+.sensor-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.sensor-cell {
+  padding: 11px 13px;
+}
+
+.sensor-cell span {
+  font-size: 9.8px;
+  line-height: 1.35;
+}
+
+.sensor-cell b {
+  margin-top: 6px;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.sensor-cell b small {
+  margin-left: 2px;
+  font-size: 9px;
+}
+
+.sensor-cell em {
+  margin-top: 5px;
+  font-size: 8.8px;
+  line-height: 1.35;
+}
+
+.eq-drawer-chart {
+  height: 110px;
+}
+
+.drawer-info-list.drawer-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  column-gap: 18px;
+}
+
+.drawer-info-row {
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 9.8px;
+  line-height: 1.4;
+}
+
+.drawer-info-row b {
+  font-size: 10.8px;
+}
+
+.drawer-action-row {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.drawer-action {
+  height: 38px;
+  font-size: 10.5px;
+}
+
+.drawer-log {
+  grid-template-columns: 46px 5px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.drawer-log span {
+  font-size: 9px;
+}
+
+.drawer-log p {
+  font-size: 9.8px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1400px) {
+  .detail-drawer { width: min(570px, 96vw); }
+  .drawer-title h2 { font-size: 23px; }
+  .sensor-cell b { font-size: 20px; }
+  .sensor-cell { padding: 10px 11px; }
+  .drawer-info-row { font-size: 9.5px; }
+  .drawer-info-row b { font-size: 10.5px; }
+}
+
+@media (max-width: 700px) {
+  .detail-drawer { width: 98vw; }
+  .sensor-grid { grid-template-columns: repeat(2, 1fr); }
+  .drawer-info-list.drawer-two-col { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+}
+
+@media (max-height: 800px) and (min-width: 701px) {
+  .drawer-head { padding: 15px 20px 12px; }
+  .drawer-title { margin-top: 6px; }
+  .drawer-title h2 { font-size: 22px; }
+  .drawer-title p { font-size: 10px; margin-top: 4px; }
+  .drawer-body { padding: 13px 18px 15px; }
+  .drawer-section { margin-bottom: 13px; }
+  .drawer-section-title { margin-bottom: 8px; }
+  .sensor-cell { padding: 9px 11px; }
+  .sensor-cell b { font-size: 19px; }
+  .sensor-cell em { font-size: 8.2px; }
+  .eq-drawer-chart { height: 88px; }
+  .drawer-info-row { padding: 5px 0; }
+  .drawer-log { padding: 4px 0; }
+  .drawer-action-row { margin-top: 9px; }
+  .drawer-action { height: 34px; }
+}

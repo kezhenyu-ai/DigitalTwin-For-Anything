@@ -1,7 +1,7 @@
 {
   "name": "digitaltwin-for-anything",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.1.2",
   "type": "module",
   "description": "DigitalTwin For Anything — 铸铁件生产厂污染排放数字孪生系统",
   "scripts": {

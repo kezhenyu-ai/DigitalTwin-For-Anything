@@ -709,7 +709,7 @@ export class Dashboard {
           </div>
           <div class="drawer-section">
             <div class="drawer-section-title"><span>设备档案 / ASSET</span><span>ASSET TWIN</span></div>
-            <div class="drawer-info-list">
+            <div class="drawer-info-list drawer-two-col">
               <div class="drawer-info-row"><span>累计运行</span><b id="drawer-runtime">-- h</b></div>
               <div class="drawer-info-row"><span>今日耗电</span><b id="drawer-kwh">-- kWh</b></div>
               <div class="drawer-info-row"><span>综合效率</span><b id="drawer-efficiency">-- %</b></div>
